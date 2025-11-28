@@ -184,3 +184,10 @@ others/
 # Local configuration
 .env
 question_3/
+
+# User requested ignores
+skyworkai_rca.py
+problem_mark.md
+analysis_output.log
+log.txt
+add_rca_tools.py
