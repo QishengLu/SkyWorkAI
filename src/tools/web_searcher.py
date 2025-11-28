@@ -148,7 +148,7 @@ class WebSearcherTool(AsyncTool):
         self.fetch_content = fetch_content
 
         self._search_engine: dict[str, WebSearchEngine] = {
-            "firecrawl": FirecrawlSearchEngine(),
+            # "firecrawl": FirecrawlSearchEngine(),
         }
         self.content_fetcher: WebFetcherTool = WebFetcherTool()
 

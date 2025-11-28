@@ -5,7 +5,7 @@ load_dotenv(verbose=True)
 
 from markitdown._base_converter import DocumentConverterResult
 from crawl4ai import AsyncWebCrawler
-from firecrawl import FirecrawlApp
+# from firecrawl import FirecrawlApp
 
 async def firecrawl_fetch_url(url: str):
     try:

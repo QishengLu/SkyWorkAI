@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv(verbose=True)
 
 from typing import List
-from firecrawl import FirecrawlApp
+# from firecrawl import FirecrawlApp
 import asyncio
 
 from src.tools.search.base import WebSearchEngine, SearchItem

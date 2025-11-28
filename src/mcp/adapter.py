@@ -89,7 +89,16 @@ class AsyncToolAdapter(ToolAdapter):
                     async with client:
                         mcp_output = await client.call_tool(name = self.name, arguments=kwargs)
 
-                return json5.loads(mcp_output[0].text)
+                # 处理 CallToolResult 对象
+                if hasattr(mcp_output, 'content') and isinstance(mcp_output.content, list):
+                    # mcp_output 是 CallToolResult 对象，content 是列表
+                    return json5.loads(mcp_output.content[0].text)
+                elif isinstance(mcp_output, list) and len(mcp_output) > 0:
+                    # mcp_output 是列表
+                    return json5.loads(mcp_output[0].text)
+                else:
+                    # 直接返回字符串
+                    return str(mcp_output)
 
         name = inflection.underscore(tool.name)  # Convert to snake_case, e.g., "GetWeatherTool" -> "get_weather_tool"
         description = tool.description or "No description."

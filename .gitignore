@@ -172,7 +172,6 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-
 # Data
 data/
 .DS_Store
@@ -181,3 +180,7 @@ data/
 workdir/
 
 others/
+
+# Local configuration
+.env
+question_3/
