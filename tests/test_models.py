@@ -1,21 +1,355 @@
-import argparse
 import os
 import sys
-import asyncio
+import json
+from dotenv import load_dotenv
+load_dotenv(verbose=True)
+
 from pathlib import Path
+import argparse
 from mmengine import DictAction
-import base64
+import asyncio
+from pydantic import BaseModel, Field
+from typing import List, Dict, Any
 
 root = str(Path(__file__).resolve().parents[1])
 sys.path.append(root)
 
-from src.logger import logger
 from src.config import config
-from src.models import model_manager, ChatMessage
+from src.logger import logger
+from src.model import model_manager
+from src.message import (
+    HumanMessage,
+    SystemMessage,
+    ContentPartText,
+    ContentPartImage,
+    ImageURL,
+    ContentPartAudio,
+    AudioURL,
+    ContentPartVideo,
+    VideoURL,
+    ContentPartPdf,
+    PdfURL,
+)
+
+from src.tool import tcp
+
+from src.utils import assemble_project_path, make_file_url
+
+
+async def test_chat():
+    logger.info(f"| --------------------------------------------------")
+    logger.info(f"| Testing chat with different models")
+    models = [
+        # OpenAI models
+        # "openrouter/gpt-4o",
+        # "openrouter/gpt-4.1",
+        # "openrouter/gpt-5",
+        # "openrouter/gpt-5.1",
+        # "openrouter/gpt-5.2",
+        # "openrouter/o3",
+        "openrouter/gpt-5.4-pro",
+        # "openai/gpt-4o",
+        # "openai/gpt-4.1",
+        # "openai/gpt-5",
+        # "openai/gpt-5.1",
+        # "openai/gpt-5.2",
+        # "openai/o3",
+        
+        # Anthropic models
+        # "openrouter/claude-sonnet-3.7",
+        # "openrouter/claude-sonnet-4",
+        # "openrouter/claude-opus-4",
+        # "openrouter/claude-sonnet-4.5",
+        # "openrouter/claude-opus-4.5",
+        "openrouter/claude-sonnet-4.6",
+        "openrouter/claude-opus-4.6",
+        # "anthropic/claude-sonnet-3.7",
+        # "anthropic/claude-sonnet-4",
+        # "anthropic/claude-sonnet-4.5",
+        
+        
+        # Gemini models
+        # "openrouter/gemini-2.5-flash",
+        # "openrouter/gemini-2.5-pro",
+        # "openrouter/gemini-3-flash-preview",
+        # "openrouter/gemini-3-pro-preview",
+        "openrouter/gemini-3.1-pro-preview",
+        # "google/gemini-2.5-flash",
+        # "google/gemini-2.5-pro",
+        # "google/gemini-3-pro-preview",
+        
+        # Grok models
+        "openrouter/grok-4.1-fast",
+    ]
+    
+    image_url = make_file_url(file_path=assemble_project_path("tests/files/pokemon.jpg"))
+    
+    messages = [
+        SystemMessage(content="You are a helpful assistant."),
+        HumanMessage(content=[
+            ContentPartText(text="What are the names of the Pokémon in the image?"),
+            ContentPartImage(image_url=ImageURL(url=image_url, detail="high")),
+        ]),
+    ]
+    
+    for model in models:
+        logger.info(f"| Testing {model}")
+        response = await model_manager(
+            model=model,
+            messages=messages
+        )
+        logger.info(f"| {model} Response: {json.dumps(response.model_dump(), indent=4)}")
+    logger.info(f"| --------------------------------------------------")
+
+async def test_transcription():
+    logger.info(f"| --------------------------------------------------")
+    logger.info(f"| Testing transcription with different models")
+    models = [
+        # "openai/gpt-4o-transcribe",
+        "openrouter/gemini-2.5-flash",
+        # "google/gemini-2.5-flash",
+    ]
+    
+    messages = [
+        SystemMessage(content="You are a helpful assistant."),
+        HumanMessage(content=[
+            ContentPartText(text="Please transcribe the audio file and provide the transcription. Only return the transcription, no other text or formatting."),
+            ContentPartAudio(audio_url=AudioURL(url=make_file_url(file_path="tests/files/audio.mp3"))),
+        ]),
+    ]
+    
+    for model in models:
+        logger.info(f"| Testing {model}")
+        response = await model_manager(model=model, messages=messages)
+        logger.info(f"| {model} Response: {json.dumps(response.model_dump(), indent=4)}")
+    logger.info(f"| --------------------------------------------------")
+
+
+async def test_embedding():
+    logger.info(f"| --------------------------------------------------")
+    logger.info(f"| Testing embedding with different models")
+    models = [
+        # "openai/text-embedding-3-small",
+        "openai/text-embedding-3-large",
+        # "openai/text-embedding-ada-002",
+    ]
+    
+    messages = [
+        SystemMessage(content="You are a helpful assistant."),
+        HumanMessage(content=[
+            ContentPartText(text="Please embed the text and provide the embedding."),
+            ContentPartText(text="The text is: The quick brown fox jumps over the lazy dog."),
+        ]),
+    ]
+    
+    for model in models:
+        logger.info(f"| Testing {model}")
+        response = await model_manager(model=model, messages=messages)
+        logger.info(f"| {model} Response: {json.dumps(response.model_dump(), indent=4)}")
+    logger.info(f"| --------------------------------------------------")
+
+async def test_video():
+    logger.info(f"| --------------------------------------------------")
+    logger.info(f"| Testing video with different models")
+    models = [
+        "openrouter/gemini-2.5-flash",
+        # "google/gemini-2.5-flash",
+    ]
+    
+    messages = [
+        SystemMessage(content="You are a helpful assistant."),
+        HumanMessage(content=[
+            ContentPartText(text="Please analyze the video and provide the analysis. Only return the analysis, no other text or formatting."),
+            ContentPartVideo(video_url=VideoURL(url=make_file_url(file_path="tests/files/video.MOV"))),
+        ]),
+    ]
+    
+    for model in models:
+        logger.info(f"| Testing {model}")
+        response = await model_manager(model=model, messages=messages)
+        logger.info(f"| {model} Response: {json.dumps(response.model_dump(), indent=4)}")
+    logger.info(f"| --------------------------------------------------")
+
+
+async def test_pdf():
+    logger.info(f"| --------------------------------------------------")
+    logger.info(f"| Testing PDF with different models")
+    models = [
+        "openrouter/gemini-3-flash-preview-plugins"
+    ]
+    
+    messages = [
+        SystemMessage(content="You are a helpful assistant."),
+        HumanMessage(content=[
+            ContentPartText(text="Please analyze the PDF and provide the analysis. Only return the analysis, no other text or formatting."),
+            ContentPartPdf(pdf_url=PdfURL(url=make_file_url(file_path="tests/files/pdf.pdf"))),
+        ]),
+    ]
+    
+    for model in models:
+        logger.info(f"| Testing {model}")
+        response = await model_manager(model=model, messages=messages)
+        logger.info(f"| {model} Response: {json.dumps(response.model_dump(), indent=4)}")
+    logger.info(f"| --------------------------------------------------")
+
+
+async def test_response_format():
+    logger.info(f"| --------------------------------------------------")
+    logger.info(f"| Testing response format with different models")
+    models = [
+        # OpenAI models
+        # "openrouter/gpt-4o",
+        # "openrouter/gpt-4.1",
+        # "openrouter/gpt-5",
+        # "openrouter/gpt-5.1",
+        # "openrouter/gpt-5.2",
+        # "openrouter/o3",
+        # "openai/gpt-4o",
+        # "openai/gpt-4.1",
+        # "openai/gpt-5",
+        # "openai/gpt-5.1",
+        # "openai/o3",
+        
+        # Anthropic models
+        # "openrouter/claude-sonnet-3.7",
+        # "openrouter/claude-sonnet-4",
+        # "openrouter/claude-opus-4",
+        # "openrouter/claude-sonnet-4.5",
+        # "openrouter/claude-opus-4.5",
+        # "anthropic/claude-sonnet-4.5",
+        
+        # Gemini models
+        # "openrouter/gemini-2.5-flash",
+        # "openrouter/gemini-2.5-pro",
+        # "openrouter/gemini-3-pro-preview",
+        "openrouter/gemini-3-flash-preview",
+        # "google/gemini-2.5-flash",
+        # "google/gemini-2.5-pro",
+        # "google/gemini-3-pro-preview",
+    ]
+    
+    class ToolInputArgs(BaseModel):
+        name: str = Field(description="The name of the tool")
+        args: Dict[str, Any] = Field(description="The arguments of the tool")
+    
+    class ThinkOutput(BaseModel):
+        thinking: str = Field(description="The thinking process of the assistant")
+        previous_goal: str = Field(description="The previous goal of the assistant")
+        next_goal: str = Field(description="The next goal of the assistant")
+        tool: List[ToolInputArgs] = Field(description="The list of tools to call")
+    
+    prompt = """
+    <available_tools>
+    available_tools:
+    <done>
+    done: DoneTool
+     - result: The result of the task
+     - reasoning: The reasoning process of the task
+    </done>
+    <example>
+    Example: {"name": "done", "args": {"result": "The task has been completed.", "reasoning": "The task has been completed successfully."}}
+    </example>
+    
+    Please add the numbers 1 and 2, get the result and call the done tool with the result.
+    """
+    
+    messages = [
+        SystemMessage(content="You are a helpful assistant."),
+        HumanMessage(content=[
+            ContentPartText(text=prompt),
+        ]),
+    ]
+    
+    for model in models:
+    
+        response = await model_manager(model=model, messages=messages, response_format=ThinkOutput)
+        logger.info(f"| {model} Response: {json.dumps(response.model_dump(), indent=4)}")
+        
+        parsed_response = response.extra.parsed_model
+        print(parsed_response)
+        
+    logger.info(f"| --------------------------------------------------")
+
+async def test_tool_calling():
+    logger.info(f"| --------------------------------------------------")
+    logger.info(f"| Testing tool calling with different models")
+    models = [
+        # OpenAI models
+        "openrouter/gpt-4o",
+        "openrouter/gpt-4.1",
+        "openrouter/gpt-5",
+        "openrouter/gpt-5.1",
+        "openrouter/gpt-5.2",
+        "openrouter/o3",
+        # "openai/gpt-4o",
+        # "openai/gpt-4.1",
+        # "openai/gpt-5",
+        # "openai/gpt-5.1",
+        # "openai/o3",
+        
+        # Anthropic models
+        # "openrouter/claude-sonnet-3.7",
+        # "openrouter/claude-sonnet-4",
+        # "openrouter/claude-opus-4",
+        # "openrouter/claude-sonnet-4.5",
+        # "openrouter/claude-opus-4.5",
+        # "anthropic/claude-sonnet-3.7",
+        # "anthropic/claude-sonnet-4",
+        # "anthropic/claude-sonnet-4.5",
+        
+        # Gemini models
+        # "openrouter/gemini-2.5-flash",
+        # "openrouter/gemini-2.5-pro",
+        # "openrouter/gemini-3-pro-preview",
+        # "google/gemini-2.5-flash",
+        # "google/gemini-2.5-pro",
+        # "google/gemini-3-pro-preview",
+    ]
+    
+    tools = [
+        await tcp.get('bash'),
+    ]
+    
+    messages = [
+        SystemMessage(content="You are a helpful assistant."),
+        HumanMessage(content=[
+            ContentPartText(text="Please run the command 'ls -l' and return the output."),
+        ]),
+    ]
+    
+    for model in models:
+        logger.info(f"| Testing {model}")
+        response = await model_manager(
+            model=model, 
+            messages=messages,
+            tools=tools,
+        )
+        logger.info(f"| {model} Response: {json.dumps(response.model_dump(), indent=4)}")
+    logger.info(f"| --------------------------------------------------")
+
+async def test_search():
+    logger.info(f"| --------------------------------------------------")
+    logger.info(f"| Testing search with different models")
+    models = [
+        "openrouter/gemini-3-flash-preview-plugins"
+    ]
+    
+    messages = [
+        SystemMessage(content="You are a helpful assistant."),
+        HumanMessage(content=[
+            ContentPartText(text="Please search the web for the latest news about the AAPL stock."),
+        ]),
+    ]
+    
+    for model in models:
+        logger.info(f"| Testing {model}")
+        response = await model_manager(model=model, messages=messages)
+        logger.info(f"| {model} Response: {json.dumps(response.model_dump(), indent=4)}")
+    logger.info(f"| --------------------------------------------------")
 
 def parse_args():
     parser = argparse.ArgumentParser(description='main')
-    parser.add_argument("--config", default=os.path.join(root, "configs", "config_general.py"), help="config file path")
+    parser.add_argument("--config", default=os.path.join(root, "configs", "tool_calling_agent.py"), help="config file path")
 
     parser.add_argument(
         '--cfg-options',
@@ -30,113 +364,29 @@ def parse_args():
     args = parser.parse_args()
     return args
 
+async def main():
+    args = parse_args()
+    
+    config.initialize(config_path=args.config, args=args)
+    logger.initialize(config=config)
+    logger.info(f"| Config: {config.pretty_text}")
+    
+    # Initialize model manager
+    await model_manager.initialize()
+    logger.info(f"| Model manager initialized: {await model_manager.list()}")
+    
+    # Initialize tools
+    await tcp.initialize(tool_names=config.tool_names)
+    logger.info(f"| Tools initialized: {await tcp.list()}")
 
-async def video_generation():
-    # Video Generation with Veo3: Step1: Veo3 Predict, Step2: Veo3 Fetch
-
-    # Veo3 Predict
-    response = model_manager.registed_models["veo3-predict"](
-        prompt="Please generate a video of a dancing girl.",
-    )
-    name = response
-    logger.info(f"Veo3 Predict operation name: {name}.")
-
-    video_data = None
-    while video_data is None:
-        try:
-            # Veo3 Fetch
-            response = model_manager.registed_models["veo3-fetch"](
-                # name="projects/veo-ai-video-463310/locations/us-central1/publishers/google/models/veo-3.0-generate-preview/operations/7ed511e2-7aef-4714-952f-e03467db1d4d",
-                name=name,
-            )
-            video_data = base64.b64decode(response)
-        except Exception as e:
-            logger.warning("Failed to fetch video data. Retrying in 60 seconds...")
-            await asyncio.sleep(60)  # Wait for 60 seconds before retrying
-
-    with open("test_case_video.mp4", "wb") as f:
-        f.write(video_data)
-    logger.info("Video saved as test_case_video.mp4")
+    await test_chat()
+    # await test_response_format()
+    # await test_tool_calling()
+    # await test_transcription()
+    # await test_embedding()
+    # await test_video()
+    # await test_pdf()
+    # await test_search()
 
 if __name__ == "__main__":
-
-    # Parse command line arguments
-    args = parse_args()
-
-    # Initialize the configuration
-    config.init_config(args.config, args)
-
-    # Initialize the logger
-    logger.init_logger(log_path=config.log_path)
-    logger.info(f"| Logger initialized at: {config.log_path}")
-    logger.info(f"| Config:\n{config.pretty_text}")
-
-    # Registed models
-    model_manager.init_models(use_local_proxy=True)
-    logger.info("Registed models: %s", ", ".join(model_manager.registed_models.keys()))
-
-    # Test video generation
-    # asyncio.run(video_generation())
-    #
-    # response = model_manager.registed_models["imagen"](
-    #     prompt="Generate an image of a futuristic city skyline at sunset.",
-    # )
-    # img_data = base64.b64decode(response)
-    # with open("test_case_image.png", "wb") as f:
-    #     f.write(img_data)
-    # logger.info("Image saved as test_case_image.png")
-
-    messages = [
-        ChatMessage(role="user", content="Riddle solution: 200 coins, 30 face-up, must divide into two piles with equal face-down coins, unable to distinguish coin sides in darkness. Picks 30 coins, flips all, rest 170 untouched. Larger pile has 14 face-down coins. What is the outcome for the adventurer? Number of coins won or if he died."),
-    ]
-
-    response = asyncio.run(model_manager.registed_models["o3-deep-research"](
-        messages=messages,
-    ))
-    print(response)
-    exit()
-
-    response = asyncio.run(model_manager.registed_models["deepseek-chat"](
-        messages=messages,
-    ))
-    print(response)
-
-    response = asyncio.run(model_manager.registed_models["deepseek-reasoner"](
-        messages=messages,
-    ))
-    print(response)
-
-    response = asyncio.run(model_manager.registed_models["o3"](
-        messages=messages,
-    ))
-    print(response)
-
-    response = asyncio.run(model_manager.registed_models["gpt-4.1"](
-        messages=messages,
-    ))
-    print(response)
-
-    response = asyncio.run(model_manager.registed_models["claude37-sonnet"](
-        messages=messages,
-    ))
-    print(response)
-
-    response = asyncio.run(model_manager.registed_models["claude-3.7-sonnet-thinking"](
-        messages=messages,
-    ))
-    print(response)
-
-    response = asyncio.run(model_manager.registed_models["claude-4-sonnet"](
-        messages=messages,
-    ))
-    print(response)
-
-    response = asyncio.run(model_manager.registed_models["gemini-2.5-pro"](
-        messages=messages,
-    ))
-    print(response)
-
-    # test langchain models
-    model = model_manager.registed_models["langchain-gpt-4.1"]
-    response = asyncio.run(model.ainvoke("What is the capital of France?"))
-    print(response)
+    asyncio.run(main())
