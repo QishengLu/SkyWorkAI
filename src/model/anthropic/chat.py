@@ -45,6 +45,7 @@ class ChatAnthropic(BaseModel):
     # Models that support output_format (structured outputs)
     OUTPUT_FORMAT_SUPPORTED_MODELS: ClassVar[List[str]] = [
         'claude-sonnet-4-5-20250929',
+        'claude-sonnet-4-6',
         'claude-opus-4-1-20250805',  # Opus 4.1
         # Add newer models here as they become available
     ]

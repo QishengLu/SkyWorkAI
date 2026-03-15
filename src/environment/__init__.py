@@ -1,35 +1,39 @@
+import importlib
+
+# Core environments (always available)
 from .file_system_environment import FileSystemEnvironment
-from .github_environment import GitHubEnvironment
-from .interday_trading_environment import InterdayTradingEnvironment
-from .intraday_trading_environment import IntradayTradingEnvironment
-from .database_environment import DatabaseEnvironment
 from .faiss_environment import FaissEnvironment
-from .operator_browser_environment import OperatorBrowserEnvironment
-from .mobile_environment import MobileEnvironment
-from .anthropic_mobile_environment import AnthropicMobileEnvironment
-from .alpaca_environment import AlpacaEnvironment
-from .binance_environment import BinanceEnvironment
-from .hyperliquid_environment import OnlineHyperliquidEnvironment
-from .hyperliquid_environment import OfflineHyperliquidEnvironment
-from.quickbacktest_environment import QuickBacktestEnvironment
-from .signal_research_environment import SignalResearchEnvironment
 from .server import ecp
+
+# Optional environments - import gracefully to avoid breaking on missing deps
+_optional_environments = [
+    ("github_environment", "GitHubEnvironment"),
+    ("interday_trading_environment", "InterdayTradingEnvironment"),
+    ("intraday_trading_environment", "IntradayTradingEnvironment"),
+    ("database_environment", "DatabaseEnvironment"),
+    ("operator_browser_environment", "OperatorBrowserEnvironment"),
+    ("mobile_environment", "MobileEnvironment"),
+    ("anthropic_mobile_environment", "AnthropicMobileEnvironment"),
+    ("alpaca_environment", "AlpacaEnvironment"),
+    ("binance_environment", "BinanceEnvironment"),
+    ("hyperliquid_environment", "OnlineHyperliquidEnvironment"),
+    ("hyperliquid_environment", "OfflineHyperliquidEnvironment"),
+    ("quickbacktest_environment", "QuickBacktestEnvironment"),
+    ("signal_research_environment", "SignalResearchEnvironment"),
+]
+
+_loaded = {}
+for _mod_name, _cls_name in _optional_environments:
+    try:
+        _mod = importlib.import_module(f".{_mod_name}", package=__name__)
+        _cls = getattr(_mod, _cls_name)
+        _loaded[_cls_name] = _cls
+        globals()[_cls_name] = _cls
+    except (ImportError, AttributeError):
+        pass
 
 __all__ = [
     "FileSystemEnvironment",
-    "GitHubEnvironment",
-    "InterdayTradingEnvironment",
-    "IntradayTradingEnvironment",
-    "DatabaseEnvironment",
     "FaissEnvironment",
-    "OperatorBrowserEnvironment",
-    "MobileEnvironment",
-    "AnthropicMobileEnvironment",
-    "AlpacaEnvironment",
-    "BinanceEnvironment",
-    "OnlineHyperliquidEnvironment",
-    "OfflineHyperliquidEnvironment",
-    "QuickBacktestEnvironment",
-    "SignalResearchEnvironment",
     "ecp",
-]
+] + list(_loaded.keys())

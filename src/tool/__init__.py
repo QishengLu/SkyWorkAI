@@ -1,11 +1,14 @@
 from .types import Tool, ToolResponse
 from .context import ToolContextManager
-from .default_tools import (WebFetcherTool, 
+from .default_tools import (WebFetcherTool,
                             WebSearcherTool,
                             MdifyTool,
                             DoneTool,
                             PythonInterpreterTool,
-                            BashTool)
+                            BashTool,
+                            ListTablesInDirectoryTool,
+                            GetSchemaTool,
+                            QueryParquetFilesTool)
 from .workflow_tools import (BrowserTool,
                             DeepResearcherTool,
                             DeepAnalyzerTool,
@@ -41,4 +44,7 @@ __all__ = [
     "RetrieverTool",
     "PlotterTool",
     "ReformulatorTool",
+    "ListTablesInDirectoryTool",
+    "GetSchemaTool",
+    "QueryParquetFilesTool",
 ]

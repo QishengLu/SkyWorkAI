@@ -268,6 +268,8 @@ class ChatOpenAI(BaseModel):
             ChatCompletion object
         """
         client = self.get_client()
+        # plugins 是 OpenRouter 专属参数，OpenAI 兼容 API 不支持，需要过滤掉
+        params.pop('plugins', None)
         response = await client.chat.completions.create(
             model=self.model,
             messages=messages,

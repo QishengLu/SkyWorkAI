@@ -244,9 +244,12 @@ class ToolCallingAgent(Agent):
                     if action_name == "done":
                         done = True
                         result = action_result
-                        reasoning = action_extra.data.get('reasoning', None) if action_extra and action_extra.data else None
+                        try:
+                            reasoning = action_extra.data.get('reasoning', None) if action_extra and action_extra.data else None
+                        except Exception:
+                            reasoning = None
                         break
-            
+
             event_data = {
                 "thinking": thinking,
                 "evaluation_previous_goal": evaluation_previous_goal,
@@ -254,25 +257,28 @@ class ToolCallingAgent(Agent):
                 "next_goal": next_goal,
                 "actions": action_results
             }
-            
+
             if record is not None:
                 record.tool = record_data
-            
+
             # Get memory system name
             memory_name = self.memory_name
-            
+
             # Add event to memory if use_memory is enabled
             if self.use_memory and memory_name:
-                await memory_manager.add_event(
-                    memory_name=memory_name,
-                    step_number=step_number,
-                    event_type=EventType.TOOL_STEP,
-                    data=event_data,
-                    agent_name=self.name,
-                    task_id=task_id,
-                    ctx=ctx
-                )
-            
+                try:
+                    await memory_manager.add_event(
+                        memory_name=memory_name,
+                        step_number=step_number,
+                        event_type=EventType.TOOL_STEP,
+                        data=event_data,
+                        agent_name=self.name,
+                        task_id=task_id,
+                        ctx=ctx
+                    )
+                except Exception as e:
+                    logger.error(f"| Error saving memory event (non-fatal): {e}")
+
         except Exception as e:
             logger.error(f"| Error in thinking and tool step: {e}")
         

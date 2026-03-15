@@ -7,6 +7,11 @@ from .mdify import MdifyTool
 from .leetcode import LeetCodeTool
 from .file_reader import FileReaderTool
 from .file_editor import FileEditorTool
+from .rca_tools import (
+    ListTablesInDirectoryTool,
+    GetSchemaTool,
+    QueryParquetFilesTool,
+)
 
 __all__ = [
     "BashTool",
@@ -18,4 +23,7 @@ __all__ = [
     "LeetCodeTool",
     "FileReaderTool",
     "FileEditorTool",
+    "ListTablesInDirectoryTool",
+    "GetSchemaTool",
+    "QueryParquetFilesTool",
 ]
